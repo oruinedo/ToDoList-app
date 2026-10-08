@@ -1,5 +1,12 @@
 # 更新记录
 
+## v1.4.1
+
+- 新增 Windows x64 单文件便携 EXE。首次启动自动解压并打开桌面客户端；使用者无需再解压 ZIP、复制运行依赖或运行 CMD。
+- 通过 electron-builder 的 Windows `portable` 目标生成无人值守便携启动器，运行级别为普通用户。
+- Electron 待办数据继续保存在原有 `%APPDATA%\TodoDesktop` 位置。
+- 自动保留 v1.4.0 的 Windows ZIP 作为备用下载；新版本 EXE 当前没有代码签名，Windows 可能显示 SmartScreen 提示。
+
 ## v1.4.0
 
 首次 GitHub 公开发布 Todo Desktop Electron 桌面客户端。

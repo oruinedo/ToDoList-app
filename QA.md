@@ -2,11 +2,11 @@
 
 ## 验证范围
 
-GitHub 仓库提供 Electron 客户端源码、锁定依赖与 Windows 构建脚本；v1.4.0 Release 另附包含 Electron 运行依赖的 Windows x64 目录 ZIP 包与 SHA-256 校验文件。
+v1.4.1 新增 electron-builder 26.17.0 Windows `portable` 构建目标，将应用和 Electron 运行时封装为单个 Windows x64 自解压 EXE。该官方打包选项的预期行为是双击后解压并运行；本机 Windows 打包在获取上游 NSIS 构建组件时因 GitHub 连接超时而未完成。本版本通过 GitHub Windows Actions 构建，并在对应流程完成后验证 Release 附件。EXE 首次运行时会解压到临时目录；任务与设置继续保存在原有 `%APPDATA%\TodoDesktop` 数据目录。
 
-本次 GitHub 发布准备期间，`npm.cmd test` 的全部 11 项测试通过，`npm.cmd run package:win` 成功生成 `TodoDesktop-win32-x64` 目录包。已检查 EXE、应用源码、图标、Electron 运行文件与快捷方式脚本的打包结构。
+v1.4.0 的全部 11 项既有测试通过，`npm.cmd run package:win` 生成的 Electron 目录包包含完整运行依赖，归档的程序文件与锁定源码经 SHA-256 校验一致。v1.4.1 将使用 GitHub Windows Actions 运行 `npm run package:portable` 并将单一 EXE 附加到同版本 Release。
 
-在隔离数据目录中尝试 Electron 原生启动检查时，进程在完成启动前以 Windows 退出码 `2147483651`（`0x80000003`）结束；关闭 GPU 的诊断尝试也未完成启动。因此**原生启动与交互验收仍未完成**，不能以打包成功代替运行验证。置顶效果、原生窗口拖动、托盘显示、原生文件对话框、桌面快捷方式和系统安全提示，需要在实际使用的 Windows 环境验证。
+在隔离数据目录中尝试 Electron 原生启动检查时，运行节点以 Windows 异常断点退出（`0x80000003`），未完成交互验收。v1.4.1 的首次实际发布流水线仍需验证 Windows 自解压便携文件生成与上传。Windows 置顶、拖动、托盘、原生文件对话框和首次运行 SmartScreen 状态仍需在用户实际环境确认。
 
 ## 数据层与主进程
 

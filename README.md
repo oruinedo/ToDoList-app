@@ -2,7 +2,8 @@
 
 米灰色背景、灰蓝色点缀。启动即打开独立桌面小窗，不连接原来的网页服务；日常运行不需要 Docker、Nginx、浏览器或数据库。
 
-> **直接使用：** 前往 [Releases](https://github.com/oruinedo/ToDoList-app/releases/latest)，下载 `TodoDesktop-v1.4.0-win32-x64.zip`，解压整个文件夹后双击 `TodoDesktop.exe`。无需安装 Node.js。
+> **直接使用：** 前往 [Releases](https://github.com/oruinedo/ToDoList-app/releases/latest)，下载 `TodoDesktop-v1.4.1-win32-x64.exe`，双击即可启动，无需安装、解压或运行命令。首次运行时 EXE 会自动解压并启动程序；待办数据仍保存在 Windows 用户数据目录。
+> Windows 可能对未签名程序显示 SmartScreen 提示；请确认下载链接来自本仓库，且不要关闭安全软件。
 > 本仓库提供源码；从源码启动需要 Windows 上的 Node.js 22.12 或更高版本，以及网络下载 Electron。
 > 推荐使用 Node.js 24 LTS。在 Windows 本机启动或打包，不要在 WSL 中运行这份 Windows 打包脚本。
 > 打包成功后，运行输出目录内的 `TodoDesktop.exe` 不再需要单独安装 Node.js，也不需要联网下载运行依赖。
@@ -43,6 +44,23 @@ npm.cmd start
 
 ## 2. 生成可双击的客户端
 
+### 单文件便携 EXE
+
+Release 提供双击即运行的 `TodoDesktop-1.4.1-win32-x64.exe`。下载后直接双击即可；无需安装 Node.js、解压 ZIP、执行 CMD 或把文件复制到其他文件夹。运行文件在首次启动时自动展开至 Windows 临时目录，再启动应用。便携启动不会改动待办数据的位置。
+
+首次运行时请确认该 EXE 来自 GitHub 上的公开仓库。当前程序未进行代码签名，Windows 可能显示 SmartScreen 提示。
+
+从源码重新构建单文件版本时，先在 Windows 安装 Node.js 22.12+，随后：
+
+```powershell
+npm.cmd ci --include=dev --no-audit --no-fund
+npm.cmd run package:portable
+```
+
+最终 EXE 生成于 `release/portable/`。GitHub Actions 会在发布版本标签时自动生成并附加 Windows x64 便携 EXE。
+
+### 免安装运行目录包
+
 在 Windows 中双击项目根目录的 **`build-client.cmd`**。
 
 或在同一项目目录运行：
@@ -68,7 +86,7 @@ release\TodoDesktop-win32-x64\
 
 双击 **`TodoDesktop.exe`** 直接打开小窗。建议把整个输出文件夹放在长期保留的位置，再运行里面的 `create-desktop-shortcut.cmd` 创建桌面快捷方式。
 
-**不要只复制 EXE，也不要删除旁边的 DLL、resources、locales 等运行文件。** 这是免安装的目录包，不是单文件 EXE，也不是安装向导。待办数据仍保存在用户目录，不会随程序目录自动迁移到另一台电脑。
+本地 `package:win` 构建仍可生成上述目录包，供开发排错或自用。Release 首选的单文件版本会自动解压运行，不需要读取 `TodoDesktop.exe` 旁边的 DLL、resources 或 locales 文件。
 
 脚本会识别下载运行包的 Windows 架构；ARM64 等输出目录后缀会不同。重复打包若目标目录已存在，会生成带时间戳的新目录，不覆盖上一次的构建。
 
@@ -178,7 +196,7 @@ todo-electron-v1.4/
 └── QA.md                        已完成测试与尚未验证的边界
 ```
 
-运行时没有第三方 JavaScript 业务依赖；开发依赖仅固定 `electron@44.7.0`。仓库不含 Electron 二进制文件与 node_modules；已提交 `package-lock.json`，可使用 `npm.cmd ci --include=dev --no-audit --no-fund` 复现依赖安装。Release 的 Windows ZIP 包包含完整运行依赖。
+运行时没有第三方 JavaScript 业务依赖；Electron 与 `electron-builder` 均使用锁定版本。仓库不含二进制文件与 node_modules；已提交 `package-lock.json`，可使用 `npm.cmd ci --include=dev --no-audit --no-fund` 安装开发与构建工具。源码构建的 Windows x64 便携 EXE 自动解压并启动，不需要用户安装 Node.js 或运行命令。
 
 ## 8. 排错与边界
 
