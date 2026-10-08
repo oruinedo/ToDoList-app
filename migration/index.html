@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="application-version" content="1.3.0">
+  <title>我的待办 · Todo</title>
+  <link rel="icon" href="data:,">
+  <style>
+:root {
+  /* 配色集中在这里：米灰底色 + 灰蓝点缀 */
+  --bg: #EDEBE7;
+  --sidebar: #E3E0DB;
+  --surface: #FAF9F6;
+  --field: #F0EEEA;
+  --border: #D9D6D1;
+  --text: #39434B;
+  --secondary: #646F78;
+  --muted: #737B82;
+  --completed: #8A9299;
+  --accent: #607A8E;
+  --accent-hover: #526C80;
+  --accent-soft: #D7E0E7;
+  --accent-text: #465F72;
+  --accent-on: #FFFFFF;
+  --hover: #E8E6E2;
+  --urgent-bg: #F0E2DE;
+  --urgent-text: #986358;
+  font-family: Inter, 'Microsoft YaHei', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+::selection { background: var(--accent-soft); color: var(--accent-text); }
+.app { display: flex; min-height: 100vh; }
+.side { width: 230px; flex-shrink: 0; background: var(--sidebar); padding: 38px 20px; border-right: 1px solid var(--border); }
+.brand { font-size: 22px; font-weight: 700; margin: 0 12px 44px; letter-spacing: 1px; color: var(--accent-text); }
+.nav { display: block; width: 100%; border: 0; background: transparent; text-align: left; padding: 13px 15px; border-radius: 11px; color: var(--secondary); cursor: pointer; font-size: 14px; margin: 5px 0; }
+.nav:hover { background: var(--hover); }
+.nav.active { background: var(--accent-soft); color: var(--accent-text); font-weight: 650; }
+.main { width: min(900px, 100%); min-width: 0; margin: 0 auto; padding: 65px 48px; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.eyebrow { font-size: 12px; color: var(--muted); letter-spacing: 2px; }
+h1 { font-size: 30px; font-weight: 650; margin: 8px 0 7px; }
+.sub { color: var(--muted); font-size: 13px; }
+.stats { display: flex; gap: 12px; margin: 30px 0; }
+.stat { flex: 1; border: 1px solid var(--border); background: var(--surface); border-radius: 14px; padding: 18px; }
+.stat b { display: block; font-size: 24px; margin-bottom: 4px; color: var(--accent-text); }
+.stat span { font-size: 12px; color: var(--muted); }
+.composer { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 15px; margin: 22px 0; }
+.composer:focus-within { border-color: var(--accent); }
+.composer input[type=text] { width: 100%; border: 0; outline: 0; font-size: 15px; color: var(--text); background: transparent; padding: 8px 4px; }
+.composer input[type=text]::placeholder { color: var(--muted); }
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.controls select, .controls input[type=date] { background: var(--field); border: 1px solid var(--border); border-radius: 8px; padding: 9px; color: var(--secondary); }
+.controls button, .primary { margin-left: auto; border: 0; background: var(--accent); color: var(--accent-on); padding: 10px 21px; border-radius: 9px; cursor: pointer; }
+.controls button:hover, .primary:hover { background: var(--accent-hover); }
+button:focus-visible, select:focus-visible, input[type=date]:focus-visible, input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.section-title { font-size: 15px; font-weight: 650; margin: 32px 0 15px; }
+.task { display: flex; align-items: flex-start; gap: 13px; padding: 16px 15px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 9px 0; }
+.task input[type=checkbox] { accent-color: var(--accent); width: 17px; height: 17px; margin: 4px 0 0; flex-shrink: 0; cursor: pointer; }
+.task .content { flex: 1; min-width: 0; }
+.task .name { font-size: 14px; font-weight: 600; line-height: 1.65; overflow-wrap: anywhere; }
+.task.done .name { text-decoration: line-through; color: var(--completed); }
+.meta { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.pill { font-size: 11px; background: var(--urgent-bg); color: var(--urgent-text); padding: 5px 9px; border-radius: 20px; }
+.actions button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; }
+.actions button:hover { color: var(--accent-text); background: var(--accent-soft); border-radius: 6px; }
+.empty { text-align: center; color: var(--muted); padding: 45px; }
+.mobile-nav { display: none; }
+@media(max-width: 680px) {
+  .side { display: none; }
+  .main { padding: 28px 17px 100px; }
+  .stats { gap: 7px; }
+  .stat { padding: 14px; }
+  .mobile-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: var(--sidebar); padding: 9px; gap: 4px; border-top: 1px solid var(--border); }
+  .mobile-nav .nav { text-align: center; margin: 0; padding: 12px 4px; }
+  .controls button { margin-left: 0; }
+}
+
+/* V1.2：延续原配色和布局，新增标题 / 正文与编辑面板。 */
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.side-note { font-size: 11px; color: var(--muted); margin: 50px 13px 8px; line-height: 1.9; }
+.version { font-size: 10px; color: var(--muted); margin: 0 13px; }
+.decoration { color: var(--accent); font-size: 27px; }
+.composer { padding: 20px; }
+.field-label { display: block; font-size: 12px; font-weight: 600; color: var(--secondary); margin-bottom: 6px; }
+.field-label .optional { font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 7px; }
+.composer input[type=text] { font-weight: 600; padding: 6px 0 12px; line-height: 1.6; border-bottom: 1px solid var(--border); border-radius: 0; }
+.composer input[type=text]::placeholder { font-weight: 400; }
+.body-field { margin-top: 15px; }
+.body-input { display: block; width: 100%; min-height: 82px; max-height: 320px; border: 0; outline: 0; resize: vertical; padding: 3px 0 5px; background: transparent; color: var(--text); font-size: 13px; line-height: 1.8; }
+.body-input::placeholder { color: var(--muted); opacity: 0.9; }
+.composer .controls { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 15px; }
+.controls select, .controls input[type=date] { font-size: 12px; min-height: 36px; }
+.controls button, .primary, .secondary-btn { font-size: 13px; line-height: 1.4; }
+.form-hint { font-size: 10px; color: var(--muted); margin: 10px 0 0; }
+.task .body-text { font-size: 13px; color: var(--secondary); line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 5px; }
+.task .body-text.collapsed { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.task.done .body-text { color: var(--completed); }
+.body-toggle { display: block; margin: 5px 0 0; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 11px; line-height: 1.8; cursor: pointer; }
+.body-toggle:hover { color: var(--accent-text); text-decoration: underline; }
+.meta { line-height: 1.7; margin-top: 7px; }
+.pill { flex-shrink: 0; margin-top: 1px; line-height: 1.5; }
+.actions { display: flex; align-items: center; flex-shrink: 0; margin-top: -2px; }
+.actions button { font-size: 12px; line-height: 1.7; }
+.task:focus-within { border-color: var(--accent); }
+.storage-warning { padding: 13px 16px; margin-top: 20px; background: var(--urgent-bg); color: var(--urgent-text); border-radius: 10px; font-size: 13px; line-height: 1.7; }
+.edit-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 40px); padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); color: var(--text); box-shadow: 0 22px 90px #39434b20; overflow-y: auto; }
+.edit-dialog::backdrop { background: #39434b45; }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 22px; }
+.dialog-head h2 { font-size: 20px; font-weight: 650; margin: 0 0 5px; }
+.dialog-head p { font-size: 12px; color: var(--muted); margin: 0; }
+.close-btn { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 24px; cursor: pointer; line-height: 1; }
+.close-btn:hover { background: var(--hover); }
+.edit-input, .edit-body { width: 100%; background: var(--field); color: var(--text); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; font-size: 14px; line-height: 1.7; }
+.edit-input { font-weight: 600; }
+.edit-body { min-height: 165px; max-height: 42dvh; resize: vertical; font-size: 13px; }
+.edit-input:focus, .edit-body:focus { outline: 2px solid var(--accent-soft); outline-offset: 1px; border-color: var(--accent); }
+.edit-options { display: flex; gap: 12px; margin-top: 18px; }
+.edit-options > div { flex: 1; min-width: 0; }
+.edit-options select, .edit-options input { width: 100%; min-width: 0; background: var(--field); color: var(--secondary); border: 1px solid var(--border); border-radius: 8px; padding: 9px; font-size: 12px; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); margin-top: 24px; padding-top: 17px; }
+.dialog-footer .primary { margin-left: 0; }
+.secondary-btn { border: 1px solid var(--border); background: transparent; color: var(--secondary); padding: 10px 20px; border-radius: 9px; cursor: pointer; }
+.secondary-btn:hover { background: var(--hover); }
+.dialog-error { color: var(--urgent-text); font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
+.toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); background: var(--accent-text); color: var(--accent-on); padding: 11px 18px; border-radius: 10px; box-shadow: 0 4px 24px #39434b14; font-size: 13px; z-index: 20; }
+.toast.error { background: var(--urgent-bg); color: var(--urgent-text); }
+@media (max-width: 840px) and (min-width: 681px) {
+  .side { width: 185px; padding: 38px 14px; }
+  .main { padding: 48px 24px; }
+}
+@media (max-width: 680px) {
+  .composer { padding: 17px; }
+  .composer input[type=text], .body-input, .edit-input, .edit-body { font-size: 16px; }
+  .form-hint { display: none; }
+  .task { flex-wrap: wrap; gap: 10px; padding: 15px 13px; }
+  .task .content { flex-basis: calc(100% - 30px); }
+  .task .pill { margin-left: 27px; }
+  .task .actions { margin-left: auto; }
+  .controls { gap: 8px; }
+  .controls button { margin-left: auto; }
+  .controls select, .controls input[type=date] { min-width: 0; }
+  .toast { bottom: 82px; }
+  .edit-dialog { padding: 20px; }
+  .edit-body { min-height: 150px; }
+  .mobile-nav { padding-bottom: max(9px, env(safe-area-inset-bottom)); z-index: 10; }
+}
+
+/* V1.3：同一个页面、同一份记录，增加普通弹窗和置顶小窗。 */
+.window-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; margin-left: 18px; }
+.desktop-btn { display: flex; gap: 7px; align-items: center; white-space: nowrap; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: white; padding: 10px 14px; font-size: 12px; cursor: pointer; }
+.desktop-btn:hover { background: var(--accent-hover); }
+.text-btn { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 2px; font-size: 11px; }
+.text-btn:hover { color: var(--accent-text); }
+.desktop-hint { color: var(--muted); font-size: 11px; line-height: 1.8; margin-top: 28px; }
+.quick-title { display: flex; align-items: center; min-width: 0; }
+.quick-title input { min-width: 0; }
+.confirm-dialog { width: min(380px, calc(100% - 28px)); max-height: calc(100dvh - 30px); overflow: auto; margin: auto; background: var(--surface); color: var(--text); padding: 22px; border: 1px solid var(--border); border-radius: 15px; box-shadow: 0 15px 50px #39434b22; }
+.confirm-dialog::backdrop { background: #39434b45; }
+.confirm-dialog h2 { font-size: 17px; margin: 0 0 12px; }
+.confirm-dialog p { font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.confirm-dialog .dialog-footer { margin-top: 20px; }
+.widget-mode { font-size: 13px; }
+.widget-mode .app { height: 100dvh; min-height: 0; overflow: hidden; }
+.widget-mode .side, .widget-mode .mobile-nav, .widget-mode .top, .widget-mode .stats, .widget-mode .form-hint, .widget-mode .desktop-hint { display: none; }
+.widget-mode .main { width: 100%; max-width: none; padding: 18px 18px 12px; display: flex; flex-direction: column; height: 100dvh; min-height: 0; overflow-y: auto; }
+.widget-mode .main > * { flex-shrink: 0; }
+.widget-mode #tasks { flex: 1 1 auto; min-height: 70px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin; scrollbar-color: #c7c4be transparent; }
+.widget-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 13px; }
+.widget-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #bac7d0; border-radius: 10px; color: var(--accent-text); background: #e0e5e7; font-size: 25px; flex-shrink: 0; }
+.widget-brand strong { display: block; font-size: 16px; font-weight: 650; letter-spacing: .5px; white-space: nowrap; }
+.widget-mode-label { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.widget-tools { display: flex; align-items: center; gap: 4px; }
+.mini-button { border: 0; padding: 6px; background: transparent; color: var(--accent-text); font-size: 11px; white-space: nowrap; cursor: pointer; border-radius: 6px; line-height: 1.4; }
+.mini-button:hover { background: var(--accent-soft); }
+.mini-button:disabled { cursor: default; color: var(--muted); }
+.collapse-button { width: 25px; font-size: 19px; padding: 1px 0; }
+.widget-mode .eyebrow { font-size: 10px; letter-spacing: .5px; color: var(--muted); margin-bottom: 16px; }
+.widget-nav { display: flex; gap: 3px; padding: 4px; background: #e2dfda; border: 1px solid var(--border); border-radius: 10px; }
+.widget-nav .nav { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 0; padding: 8px 4px; border-radius: 7px; font-size: 12px; line-height: 1.2; width: auto; flex: 1; white-space: nowrap; }
+.widget-nav .nav.active { background: var(--surface); color: var(--accent-text); box-shadow: 0 1px 3px #39434b0b; }
+.nav-count { font-size: 10px; opacity: .75; font-variant-numeric: tabular-nums; }
+.widget-mode .composer { padding: 11px 12px 9px; border-radius: 11px; margin: 15px 0 4px; }
+.widget-mode .composer > .field-label { display: none; }
+.widget-mode .composer input[type=text] { flex: 1; width: 0; border: 0; padding: 4px 0; font-size: 13px; font-weight: 400; line-height: 1.7; }
+.quick-submit { display: grid; place-items: center; background: var(--accent); color: white; font-size: 19px; line-height: 1; width: 28px; height: 28px; border: 0; border-radius: 8px; flex-shrink: 0; cursor: pointer; margin-left: 10px; }
+.quick-submit:hover { background: var(--accent-hover); }
+.composer-toggle { display: flex; align-items: center; gap: 5px; margin-top: 5px; padding: 3px 0; color: var(--muted); border: 0; background: transparent; font-size: 10px; cursor: pointer; }
+.composer-toggle:hover { color: var(--accent-text); }
+.widget-mode .composer-details { display: none; }
+.widget-mode .composer.expanded .composer-details { display: block; }
+.widget-mode .body-field { margin-top: 12px; }
+.widget-mode .body-input { font-size: 13px; min-height: 70px; }
+.widget-mode .field-label { font-size: 11px; }
+.widget-mode .controls { gap: 6px; padding-top: 10px; margin-top: 6px; }
+.widget-mode .controls select, .widget-mode .controls input[type=date] { font-size: 11px; padding: 7px; min-height: 32px; }
+.widget-mode .controls button { padding: 8px 12px; font-size: 11px; }
+.widget-mode .section-title { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 3px; font-size: 12px; }
+.list-count { font-size: 10px; color: var(--muted); font-weight: 400; }
+.widget-mode .task { display: flex; flex-wrap: nowrap; align-items: flex-start; padding: 12px 11px; gap: 10px; margin: 8px 0; border-radius: 10px; }
+.widget-mode .task input[type=checkbox] { width: 16px; height: 16px; margin: 3px 0 0; }
+.widget-mode .task .content { flex: 1; flex-basis: auto; min-width: 0; }
+.widget-mode .task .name { font-size: 13px; font-weight: 550; line-height: 1.6; }
+.widget-mode .task .body-text { font-size: 11px; line-height: 1.8; margin-top: 4px; }
+.widget-mode .task .body-text.collapsed { -webkit-line-clamp: 2; }
+.widget-task-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 7px; }
+.widget-mode .meta { font-size: 10px; margin: 0; line-height: 1.4; }
+.widget-mode .task .pill { margin: 0; padding: 2px 6px; border-radius: 5px; font-size: 9px; }
+.widget-mode .task .actions { margin: 0 0 0 auto; gap: 3px; }
+.widget-mode .actions button { font-size: 10px; padding: 2px 4px; }
+.widget-mode .body-toggle { font-size: 10px; margin-top: 3px; }
+.widget-mode .empty { font-size: 12px; line-height: 1.9; padding: 38px 15px; }
+.widget-footer { margin-top: auto; padding-top: 12px; color: var(--muted); font-size: 10px; line-height: 1.7; }
+.widget-footer > div { display: flex; align-items: center; gap: 5px; border-top: 1px solid var(--border); padding-top: 11px; }
+.local-dot { display: inline-block; width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
+.widget-footer p { margin: 3px 0 0; font-size: 9px; }
+.widget-mode .toast { bottom: 18px; font-size: 12px; padding: 9px 13px; width: max-content; max-width: calc(100% - 26px); z-index: 50; }
+.widget-mode .storage-warning { font-size: 11px; margin-top: 10px; padding: 10px; }
+.widget-mode .edit-dialog { width: calc(100% - 24px); padding: 18px; max-height: calc(100dvh - 24px); margin: auto; border-radius: 13px; }
+.widget-mode .dialog-head { margin-bottom: 15px; }
+.widget-mode .dialog-head h2 { font-size: 17px; }
+.widget-mode .dialog-head p { font-size: 11px; }
+.widget-mode .edit-input, .widget-mode .edit-body { font-size: 13px; }
+.widget-mode .edit-body { min-height: 120px; max-height: 30dvh; }
+.widget-mode .edit-options { gap: 9px; margin-top: 12px; }
+.widget-mode .dialog-footer { margin-top: 17px; padding-top: 13px; }
+.widget-collapsed .widget-nav, .widget-collapsed .composer, .widget-collapsed #listTitle, .widget-collapsed #tasks, .widget-collapsed .widget-footer p { display: none; }
+.widget-collapsed .eyebrow { margin-bottom: 0; }
+.widget-collapsed .widget-footer { padding-top: 8px; }
+@media (max-width: 360px) {
+  .widget-mode .main { padding: 14px 12px 10px; }
+  .widget-brand strong { font-size: 14px; }
+  .widget-brand { gap: 6px; }
+  .widget-tools { gap: 0; }
+  .mini-button { padding: 6px 4px; font-size: 10px; }
+  .widget-nav .nav { font-size: 11px; gap: 4px; }
+  .widget-mode .controls button { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">◌ &nbsp;todo.</div>
+      <nav id="desktopNav" aria-label="待办分类"></nav>
+      <p class="side-note">简单记录，轻松完成。</p>
+      <p class="version">本地记录 · V1.3</p>
+    </aside>
+    <main class="main">
+      <header class="widget-header" id="widgetHeader" hidden>
+        <div class="widget-brand"><span class="brand-mark" aria-hidden="true">◌</span><div><strong>待办小窗</strong><span class="widget-mode-label" id="windowMode">普通小窗</span></div></div>
+        <div class="widget-tools">
+          <button class="mini-button" id="pinWidget" type="button" title="切换为置顶小窗">置顶</button>
+          <button class="mini-button" id="openFull" type="button" title="回到完整待办页面">完整页面 ↗</button>
+          <button class="mini-button collapse-button" id="collapseWidget" type="button" title="收起清单" aria-label="收起清单" aria-expanded="true">−</button>
+        </div>
+      </header>
+      <div class="eyebrow" id="dateLabel"></div>
+      <div class="top">
+        <div>
+          <h1 id="heading">全部待办</h1>
+          <div class="sub" id="subtitle">把事情一件一件做好。</div>
+        </div>
+        <div class="window-tools">
+          <button class="desktop-btn" id="desktopButton" type="button"><span aria-hidden="true">▣</span> 桌面小窗</button>
+          <button class="text-btn" id="popupButton" type="button">普通弹窗</button>
+<button class="text-btn" id="exportDesktop" type="button">导出到桌面版 ↓</button>
+        </div>
+      </div>
+      <nav class="widget-nav" id="widgetNav" aria-label="小窗待办分类" hidden></nav>
+      <div class="stats">
+        <div class="stat"><b id="total">0</b><span>未完成</span></div>
+        <div class="stat"><b id="today">0</b><span>今日待办</span></div>
+        <div class="stat"><b id="urgent">0</b><span>紧急事项</span></div>
+      </div>
+      <div class="storage-warning" id="storageWarning" role="alert" hidden></div>
+      <form class="composer" id="form" autocomplete="off">
+        <label class="field-label" for="taskInput">标题<span class="optional">必填</span></label>
+        <div class="quick-title"><input id="taskInput" name="title" type="text" placeholder="这件事叫什么？" required maxlength="250" aria-label="待办标题"><button class="quick-submit" type="submit" aria-label="添加待办" title="添加待办" hidden>＋</button></div>
+        <button class="composer-toggle" id="toggleComposer" type="button" aria-controls="composerDetails" aria-expanded="false" hidden>正文与日期 <span aria-hidden="true">⌄</span></button>
+        <div class="composer-details" id="composerDetails">
+        <div class="body-field">
+          <label class="field-label" for="bodyInput">正文<span class="optional">选填</span></label>
+          <textarea class="body-input" id="bodyInput" name="body" rows="3" placeholder="记录具体内容、处理步骤或补充说明…&#10;支持换行，也可以稍后再补充。"></textarea>
+        </div>
+        <div class="controls">
+          <label class="sr-only" for="priority">事项类型</label>
+          <select id="priority" name="priority"><option value="normal">普通事项</option><option value="urgent">紧急事项</option></select>
+          <label class="sr-only" for="due">计划日期</label>
+          <input id="due" name="due" type="date">
+          <button type="submit">＋ 添加任务</button>
+        </div>
+        </div>
+        <p class="form-hint">正文中按 Enter 换行 · Ctrl / ⌘ + Enter 快速保存</p>
+      </form>
+      <div class="section-title" id="listTitle">任务清单</div>
+      <div id="tasks"></div>
+      <footer class="widget-footer" id="widgetFooter" hidden><div><span class="local-dot" aria-hidden="true"></span><span id="syncLabel">与主页面共用本地数据</span></div><p id="widgetHint"></p></footer>
+      <p class="desktop-hint" id="desktopHint">桌面小窗支持时可置顶；不支持时使用普通弹窗。<br>置顶模式下可最小化主页面，请勿关闭或刷新它。</p>
+    </main>
+  </div>
+  <nav class="mobile-nav" id="mobileNav" aria-label="待办分类（移动端）"></nav>
+
+  <dialog class="edit-dialog" id="editDialog" aria-labelledby="editHeading" aria-describedby="editDescription">
+    <div class="dialog-head">
+      <div><h2 id="editHeading">编辑待办</h2><p id="editDescription">更新标题与正文，保留每个细节。</p></div>
+      <button class="close-btn" id="closeEdit" type="button" aria-label="关闭编辑">×</button>
+    </div>
+    <form id="editForm" autocomplete="off">
+      <label class="field-label" for="editTitle">标题<span class="optional">必填</span></label>
+      <input class="edit-input" id="editTitle" name="title" type="text" required maxlength="250" autofocus>
+      <div class="body-field">
+        <label class="field-label" for="editBody">正文<span class="optional">选填</span></label>
+        <textarea class="edit-body" id="editBody" name="body" placeholder="补充具体内容、步骤或备注…"></textarea>
+      </div>
+      <div class="edit-options">
+        <div><label class="field-label" for="editPriority">事项类型</label><select id="editPriority"><option value="normal">普通事项</option><option value="urgent">紧急事项</option></select></div>
+        <div><label class="field-label" for="editDue">计划日期</label><input id="editDue" type="date"></div>
+      </div>
+      <p class="dialog-error" id="editError" role="alert" hidden></p>
+      <div class="dialog-footer">
+        <button class="secondary-btn" id="cancelEdit" type="button">取消</button>
+        <button class="primary" type="submit">保存修改</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmHeading" aria-describedby="confirmMessage">
+    <h2 id="confirmHeading">请确认</h2><p id="confirmMessage"></p>
+    <div class="dialog-footer"><button class="secondary-btn" type="button" id="confirmNo">取消</button><button class="primary" type="button" id="confirmYes">确定</button></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <noscript>请在浏览器中启用 JavaScript，以记录和查看待办事项。</noscript>
+  <script>
+(() => {
+  'use strict';
+  const rootWindow = window;
+  // Snapshot only our static application markup; no user text is interpolated as HTML.
+  const template = document.body.cloneNode(true);
+  template.querySelectorAll('script').forEach(script => script.remove());
+  const markup = template.innerHTML;
+  const styles = document.querySelector('style').textContent;
+  const peers = new Set();
+  let floatingWindow = null;
+  let popupWindow = null;
+  let opening = false;
+
+  function canUsePip() {
+    return Boolean(rootWindow.isSecureContext && rootWindow.documentPictureInPicture && typeof rootWindow.documentPictureInPicture.requestWindow === 'function');
+  }
+  function openRegular(notify) {
+    if (popupWindow && !popupWindow.closed) { popupWindow.focus(); return true; }
+    const url = new URL(rootWindow.location.href);
+    url.searchParams.set('widget', '1');
+    const screen = rootWindow.screen;
+    const width = Math.max(320, Math.min(420, screen.availWidth - 32));
+    const height = Math.max(350, Math.min(660, screen.availHeight - 60));
+    const left = Math.max(screen.availLeft || 0, (screen.availLeft || 0) + screen.availWidth - width - 28);
+    const top = Math.max(screen.availTop || 0, (screen.availTop || 0) + screen.availHeight - height - 40);
+    popupWindow = rootWindow.open(url.href, 'todoLocalWidget', `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    if (!popupWindow) { notify('弹窗被浏览器拦截。请允许本站弹窗，然后再次点击「普通弹窗」。', true); return false; }
+    popupWindow.focus();
+    return true;
+  }
+  async function openDesktop(notify) {
+    if (floatingWindow && !floatingWindow.closed) { floatingWindow.focus(); return; }
+    if (opening) return;
+    if (!canUsePip()) {
+      if (openRegular(notify)) notify('当前环境不支持置顶，已打开普通弹窗。');
+      return;
+    }
+    opening = true;
+    try {
+      const pip = await rootWindow.documentPictureInPicture.requestWindow({ width: 420, height: 640 });
+      floatingWindow = pip;
+      const doc = pip.document;
+      doc.documentElement.lang = 'zh-CN';
+      const meta = doc.createElement('meta');
+      meta.name = 'viewport'; meta.content = 'width=device-width,initial-scale=1';
+      const style = doc.createElement('style'); style.textContent = styles;
+      const icon = doc.createElement('link'); icon.rel = 'icon'; icon.href = 'data:,';
+      doc.head.append(meta, style, icon);
+      doc.body.innerHTML = markup;
+      mountTodo(pip, { widget: true, pip: true });
+      pip.addEventListener('pagehide', () => { if (floatingWindow === pip) floatingWindow = null; }, { once: true });
+      notify('置顶小窗已打开，主页面可最小化。');
+    } catch (error) {
+      console.warn('Todo: unable to open desktop picture-in-picture.', error);
+      if (floatingWindow && !floatingWindow.closed) floatingWindow.close();
+      floatingWindow = null;
+      // A rejected permission request may consume the user gesture. The explicit
+      // normal-popup button remains available if the fallback is blocked.
+      if (openRegular(notify)) notify('未能启用置顶，已改用普通弹窗。');
+    } finally { opening = false; }
+  }
+
+function mountTodo(appWindow, options = {}) {
+  const window = appWindow;
+  const document = window.document;
+  const setTimeout = window.setTimeout.bind(window);
+  const clearTimeout = window.clearTimeout.bind(window);
+  const requestAnimationFrame = window.requestAnimationFrame.bind(window);
+  const cancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+  const isWidget = Boolean(options.widget);
+  const isPip = Boolean(options.pip);
+  document.body.classList.toggle('widget-mode', isWidget);
+  document.title = isWidget ? '待办小窗 · Todo' : '我的待办 · Todo';
+
+  // 不变更 KEY：V1 / V1.1 的旧任务可直接读取。
+  // 保留旧 text 字段，同时增加 title 和 body；正文始终作为纯文本渲染。
+  const KEY = 'todo-local-v1';
+  const $ = id => document.getElementById(id);
+  const tabs = [['all', '全部待办'], ['today', '今日待办'], ['urgent', '紧急事项'], ['done', '已完成']];
+  const expandedIds = new Set();
+  let items = [];
+  let view = isWidget ? 'today' : 'all';
+  let editingId = null;
+  let editOriginal = null;
+  let loadFailed = false;
+  let composing = false;
+  let toastTimer;
+  let resizeFrame;
+  let lastDay;
+
+  function localDate(date = new Date()) {
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
+
+  function newId() {
+    return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function normalize(data) {
+    if (!Array.isArray(data) || data.some(row => !row || typeof row !== 'object' || Array.isArray(row))) {
+      throw new Error('待办数据格式异常');
+    }
+    return data.map(row => {
+      const title = typeof row.title === 'string' ? row.title : (typeof row.text === 'string' ? row.text : '');
+      return {
+        ...row,
+        id: row.id ?? newId(),
+        title,
+        text: title,
+        body: typeof row.body === 'string' ? row.body : '',
+        due: typeof row.due === 'string' ? row.due : '',
+        priority: row.priority === 'urgent' ? 'urgent' : 'normal',
+        done: Boolean(row.done),
+        created: typeof row.created === 'number' ? row.created : 0
+      };
+    });
+  }
+
+  function readStored() {
+    const raw = window.localStorage.getItem(KEY);
+    return normalize(raw === null ? [] : JSON.parse(raw));
+  }
+
+  function load() {
+    try {
+      items = readStored();
+      loadFailed = false;
+      $('storageWarning').hidden = true;
+    } catch (error) {
+      // 读取失败时禁止写入，避免以空数组覆盖原始记录。
+      loadFailed = true;
+      $('storageWarning').textContent = '无法读取浏览器中的待办数据。原数据未被修改；请不要清理站点数据。保存已暂停，请检查浏览器存储权限或保留数据后排查。';
+      $('storageWarning').hidden = false;
+      console.warn('Todo: local storage could not be read.', error);
+    }
+  }
+
+  function notify(message, isError = false) {
+    clearTimeout(toastTimer);
+    $('toast').textContent = message;
+    $('toast').className = 'toast' + (isError ? ' error' : '');
+    $('toast').hidden = false;
+    toastTimer = setTimeout(() => { $('toast').hidden = true; }, isError ? 6500 : 2300);
+  }
+
+  function saveError(message) {
+    notify(message, true);
+    if ($('editDialog').open) {
+      $('editError').textContent = message;
+      $('editError').hidden = false;
+    }
+  }
+
+  function commit(transform) {
+    if (loadFailed) {
+      saveError('当前无法读取已有数据，暂未保存。请先解决页面上方提示的问题。');
+      return false;
+    }
+    try {
+      // 每次修改前读取最新值，减少多个标签页之间旧列表覆盖新任务的风险。
+      const latest = readStored();
+      const next = transform(latest);
+      if (next === null) return false;
+      window.localStorage.setItem(KEY, JSON.stringify(next));
+      items = next;
+      // PiP 和主页面可能共享执行上下文；显式通知同页实例补足 storage 事件。
+      queueMicrotask(() => { for (const peer of peers) if (peer !== refreshPeer) peer(); });
+      return true;
+    } catch (error) {
+      saveError('保存失败：浏览器存储可能已满、被禁用或数据异常。输入内容仍在，请先复制保留。');
+      console.warn('Todo: local storage could not be saved.', error);
+      return false;
+    }
+  }
+
+  function updateTask(id, changes) {
+    return commit(latest => {
+      if (!latest.some(item => item.id === id)) {
+        saveError('这条待办已在其他标签页被删除。本次修改未保存。');
+        return null;
+      }
+      return latest.map(item => item.id === id ? { ...item, ...changes } : item);
+    });
+  }
+
+  function make(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+    return element;
+  }
+
+  function renderNavigation() {
+    if (isWidget) {
+      $('widgetNav').replaceChildren();
+      const shortTabs = [['today', '今天'], ['all', '全部'], ['urgent', '紧急'], ['done', '完成']];
+      for (const [key, label] of shortTabs) {
+        const count = items.filter(item => key === 'done' ? item.done : !item.done && (key === 'all' || (key === 'today' && item.due === localDate()) || (key === 'urgent' && item.priority === 'urgent'))).length;
+        const button = make('button', 'nav' + (view === key ? ' active' : ''), label);
+        button.type = 'button';
+        button.setAttribute('aria-label', label + '，' + count + ' 项');
+        if (view === key) button.setAttribute('aria-current', 'page');
+        button.append(make('span', 'nav-count', String(count)));
+        button.addEventListener('click', () => {
+          view = key;
+          if (!$('taskInput').value && !$('bodyInput').value) $('priority').value = key === 'urgent' ? 'urgent' : 'normal';
+          render();
+        });
+        $('widgetNav').append(button);
+      }
+    }
+    for (const id of ['desktopNav', 'mobileNav']) {
+      $(id).replaceChildren();
+      for (const [key, label] of tabs) {
+        const button = make('button', 'nav' + (view === key ? ' active' : ''), label);
+        button.type = 'button';
+        if (view === key) button.setAttribute('aria-current', 'page');
+        button.addEventListener('click', () => { view = key; render(); });
+        $(id).append(button);
+      }
+    }
+  }
+
+  function syncBodyToggles() {
+    for (const card of $('tasks').querySelectorAll('.task')) {
+      const body = card.querySelector('.body-text');
+      const toggle = card.querySelector('.body-toggle');
+      if (!body || !toggle) continue;
+      // 实际排版超过三行才出现展开按钮，长段落与换行都适用。
+      toggle.hidden = !expandedIds.has(card.dataset.taskId) && body.scrollHeight <= body.clientHeight + 1;
+    }
+  }
+
+  function renderTask(item, index) {
+    const row = make('article', 'task' + (item.done ? ' done' : ''));
+    row.dataset.taskId = String(item.id);
+    const titleId = `task-title-${index}`;
+    row.setAttribute('aria-labelledby', titleId);
+
+    const check = make('input');
+    check.type = 'checkbox';
+    check.checked = item.done;
+    check.setAttribute('aria-label', (item.done ? '标记为未完成：' : '标记为已完成：') + item.title);
+    check.addEventListener('change', () => {
+      const done = check.checked;
+      if (updateTask(item.id, { done })) {
+        render();
+        notify(done ? '已完成，做得很好。' : '已恢复为待办');
+      } else {
+        check.checked = item.done;
+      }
+    });
+
+    const content = make('div', 'content');
+    const name = make('div', 'name', item.title);
+    name.id = titleId;
+    content.append(name);
+
+    if (item.body.trim()) {
+      const expanded = expandedIds.has(String(item.id));
+      const body = make('div', 'body-text' + (expanded ? '' : ' collapsed'), item.body);
+      body.id = `task-body-${index}`;
+      const toggle = make('button', 'body-toggle', expanded ? '收起正文 ↑' : '展开正文 ↓');
+      toggle.type = 'button';
+      toggle.hidden = !expanded;
+      toggle.setAttribute('aria-controls', body.id);
+      toggle.setAttribute('aria-expanded', String(expanded));
+      toggle.addEventListener('click', () => {
+        const isExpanded = !expandedIds.has(String(item.id));
+        if (isExpanded) expandedIds.add(String(item.id));
+        else expandedIds.delete(String(item.id));
+        body.classList.toggle('collapsed', !isExpanded);
+        toggle.textContent = isExpanded ? '收起正文 ↑' : '展开正文 ↓';
+        toggle.setAttribute('aria-expanded', String(isExpanded));
+        syncBodyToggles();
+      });
+      content.append(body, toggle);
+    }
+
+    if (!isWidget) content.append(make('div', 'meta', item.due ? '计划日期 · ' + item.due : '未设置日期'));
+    row.append(check, content);
+    if (item.priority === 'urgent' && !isWidget) row.append(make('span', 'pill', '紧急'));
+
+    const actions = make('div', 'actions');
+    const edit = make('button', '', '编辑');
+    edit.type = 'button';
+    edit.addEventListener('click', () => openEditor(item.id));
+    const remove = make('button', '', '删除');
+    remove.type = 'button';
+    remove.addEventListener('click', async () => {
+      if (!await confirmAction(`确定删除“${item.title}”？\n标题和正文将一起删除。`, '删除待办')) return;
+      if (commit(latest => latest.filter(task => task.id !== item.id))) {
+        expandedIds.delete(String(item.id));
+        render();
+        notify('已删除待办');
+      }
+    });
+    actions.append(edit, remove);
+    if (isWidget) {
+      const foot = make('div', 'widget-task-footer');
+      const dateLabel = item.due === localDate() ? '今天' : (item.due || '未设日期');
+      foot.append(make('span', 'meta', dateLabel));
+      if (item.priority === 'urgent') foot.append(make('span', 'pill', '紧急'));
+      foot.append(actions);
+      content.append(foot);
+    } else row.append(actions);
+    return row;
+  }
+
+  function render() {
+    const today = localDate();
+    lastDay = today;
+    $('dateLabel').textContent = new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+    }).format(new Date());
+    $('total').textContent = items.filter(item => !item.done).length;
+    $('today').textContent = items.filter(item => !item.done && item.due === today).length;
+    $('urgent').textContent = items.filter(item => !item.done && item.priority === 'urgent').length;
+    $('heading').textContent = tabs.find(tab => tab[0] === view)[1];
+    $('listTitle').textContent = isWidget ? ({today: '今天要做的事', all: '全部待办', urgent: '优先处理', done: '已完成'}[view]) : (view === 'done' ? '已完成的事项' : '任务清单');
+    renderNavigation();
+
+    const visible = items.filter(item => view === 'done' ? item.done : !item.done && (
+      view === 'all' || (view === 'today' && item.due === today) || (view === 'urgent' && item.priority === 'urgent')
+    )).sort((a, b) => ((b.priority === 'urgent') - (a.priority === 'urgent')) || (a.created - b.created));
+    const fragment = document.createDocumentFragment();
+    if (visible.length) visible.forEach((item, index) => fragment.append(renderTask(item, index)));
+    else fragment.append(make('div', 'empty', loadFailed ? '数据暂时无法读取，请查看上方提示。' : (isWidget && view === 'today' ? '今天的清单是空的。\n记一件事，或切换「全部」查看。' : '这里暂时没有事项 ✨')));
+    $('tasks').replaceChildren(fragment);
+    if (isWidget) $('listTitle').append(make('span', 'list-count', visible.length + ' 项'));
+    requestAnimationFrame(syncBodyToggles);
+  }
+
+  function openEditor(id) {
+    const item = items.find(task => task.id === id);
+    if (!item) return;
+    editingId = id;
+    editOriginal = { title: item.title, body: item.body, due: item.due, priority: item.priority };
+    $('editTitle').maxLength = Math.max(250, item.title.length);
+    $('editTitle').value = item.title;
+    $('editBody').value = item.body;
+    $('editDue').value = item.due;
+    $('editPriority').value = item.priority;
+    $('editTitle').setCustomValidity('');
+    $('editError').hidden = true;
+    $('editDialog').showModal();
+    $('editTitle').focus();
+    $('editTitle').setSelectionRange(item.title.length, item.title.length);
+  }
+
+  function editorChanged() {
+    return editOriginal && (
+      $('editTitle').value !== editOriginal.title || $('editBody').value !== editOriginal.body ||
+      $('editDue').value !== editOriginal.due || $('editPriority').value !== editOriginal.priority
+    );
+  }
+
+  async function closeEditor() {
+    if (!editorChanged() || await confirmAction('修改尚未保存，确定放弃本次修改？', '放弃修改')) $('editDialog').close();
+  }
+
+  function titleValue(input) {
+    const value = input.value.trim();
+    input.setCustomValidity(value ? '' : '请填写待办标题，不能只输入空格。');
+    if (!value) input.reportValidity();
+    return value;
+  }
+
+  $('form').addEventListener('submit', event => {
+    event.preventDefault();
+    if (composing) return;
+    const title = titleValue($('taskInput'));
+    if (!title) return;
+    const body = $('bodyInput').value;
+    const due = $('due').value;
+    const priority = $('priority').value;
+    const task = { id: newId(), title, text: title, body, due, priority, done: false, created: Date.now() };
+    if (!commit(latest => [task, ...latest])) return;
+    if (view === 'done' || (view === 'today' && due !== localDate()) || (view === 'urgent' && priority !== 'urgent')) view = 'all';
+    $('taskInput').value = '';
+    $('bodyInput').value = '';
+    if (isWidget) setComposerExpanded(false);
+    render();
+    $('taskInput').focus();
+    notify('已添加待办');
+  });
+
+  $('editForm').addEventListener('submit', event => {
+    event.preventDefault();
+    if (composing || editingId === null) return;
+    const title = titleValue($('editTitle'));
+    if (!title) return;
+    const changes = { title, text: title, body: $('editBody').value, due: $('editDue').value, priority: $('editPriority').value };
+    if (!commit(latest => {
+      const current = latest.find(item => item.id === editingId);
+      if (!current) { saveError('这条待办已在其他窗口删除，本次修改未保存。'); return null; }
+      if (editOriginal && ['title', 'body', 'due', 'priority'].some(key => current[key] !== editOriginal[key])) {
+        saveError('这条待办已在其他窗口修改。本次未覆盖；请复制保留输入，取消后重新打开编辑。');
+        return null;
+      }
+      return latest.map(item => item.id === editingId ? { ...item, ...changes } : item);
+    })) return;
+    $('editDialog').close();
+    render();
+    notify('已保存修改');
+  });
+
+  $('closeEdit').addEventListener('click', closeEditor);
+  $('cancelEdit').addEventListener('click', closeEditor);
+  $('editDialog').addEventListener('cancel', event => { event.preventDefault(); closeEditor(); });
+  $('editDialog').addEventListener('close', () => { editingId = null; editOriginal = null; });
+
+  for (const [formId, titleId, bodyId] of [['form', 'taskInput', 'bodyInput'], ['editForm', 'editTitle', 'editBody']]) {
+    $(titleId).addEventListener('input', () => $(titleId).setCustomValidity(''));
+    $(formId).addEventListener('compositionstart', () => { composing = true; });
+    $(formId).addEventListener('compositionend', () => { setTimeout(() => { composing = false; }, 0); });
+    $(formId).addEventListener('keydown', event => {
+      if (event.isComposing || composing || event.keyCode === 229) return;
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        $(formId).requestSubmit();
+      } else if (event.key === 'Enter' && event.target === $(titleId)) {
+        event.preventDefault();
+        if (isWidget && formId === 'form') $(formId).requestSubmit();
+        else $(bodyId).focus();
+      }
+    });
+  }
+
+  window.addEventListener('storage', event => {
+    if (event.key === KEY || event.key === null) { load(); render(); }
+  });
+  window.addEventListener('resize', () => {
+    cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(syncBodyToggles);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { load(); render(); }
+  });
+  function checkDay() {
+    if (localDate() !== lastDay) {
+      if (!$('taskInput').value && !$('bodyInput').value && $('due').value === lastDay) $('due').value = localDate();
+      render();
+    }
+  }
+  let dayTimer = window.setInterval(checkDay, 60000);
+
+
+  let resolveConfirm = null;
+  function confirmAction(message, heading = '请确认') {
+    if (resolveConfirm) return Promise.resolve(false);
+    $('confirmHeading').textContent = heading;
+    $('confirmMessage').textContent = message;
+    $('confirmDialog').returnValue = '';
+    $('confirmDialog').showModal();
+    $('confirmNo').focus();
+    return new Promise(resolve => { resolveConfirm = resolve; });
+  }
+  $('confirmNo').addEventListener('click', () => $('confirmDialog').close('no'));
+  $('confirmYes').addEventListener('click', () => $('confirmDialog').close('yes'));
+  $('confirmDialog').addEventListener('close', () => {
+    if (resolveConfirm) { const resolve = resolveConfirm; resolveConfirm = null; resolve($('confirmDialog').returnValue === 'yes'); }
+  });
+
+  function setComposerExpanded(expanded) {
+    $('form').classList.toggle('expanded', expanded);
+    $('toggleComposer').setAttribute('aria-expanded', String(expanded));
+    $('toggleComposer').textContent = expanded ? '收起正文与日期 ⌃' : '正文与日期 ⌄';
+  }
+  $('toggleComposer').addEventListener('click', () => setComposerExpanded(!$('form').classList.contains('expanded')));
+  $('desktopButton').addEventListener('click', () => openDesktop(notify));
+  $('popupButton').addEventListener('click', () => openRegular(notify));
+  $('pinWidget').addEventListener('click', () => openDesktop(notify));
+  $('openFull').addEventListener('click', () => {
+    if (isPip) { rootWindow.focus(); return; }
+    try {
+      if (window.opener && !window.opener.closed && window.opener.location.origin === window.location.origin) {
+        window.opener.focus(); return;
+      }
+    } catch (_) { /* An unrelated opener is not used. */ }
+    const url = new URL(rootWindow.location.href);
+    url.searchParams.delete('widget');
+    window.open(url.href, 'todoFullPage');
+  });
+  let expandedSize = null;
+  $('collapseWidget').addEventListener('click', () => {
+    const collapsed = document.body.classList.toggle('widget-collapsed');
+    const button = $('collapseWidget');
+    button.textContent = collapsed ? '＋' : '−';
+    button.title = collapsed ? '展开清单' : '收起清单';
+    button.setAttribute('aria-label', button.title);
+    button.setAttribute('aria-expanded', String(!collapsed));
+    try {
+      if (collapsed) { expandedSize = { width: window.outerWidth, height: window.outerHeight }; window.resizeTo(window.outerWidth, 185); }
+      else if (expandedSize) window.resizeTo(expandedSize.width, expandedSize.height);
+    } catch (_) { /* Some browsers permit hiding the list but not resizing a window. */ }
+  });
+
+  if (isWidget) {
+    for (const id of ['widgetHeader', 'widgetNav', 'widgetFooter', 'toggleComposer']) $(id).hidden = false;
+    document.querySelector('.quick-submit').hidden = false;
+    $('taskInput').placeholder = '记一件需要完成的事…';
+    $('windowMode').textContent = isPip ? '置顶小窗' : '普通小窗';
+    $('pinWidget').hidden = isPip;
+    if (!canUsePip() && !isPip) {
+      $('pinWidget').disabled = true;
+      $('pinWidget').title = '当前浏览器或访问方式不支持置顶，仍可使用普通弹窗。';
+    }
+    $('widgetHint').textContent = isPip ? '主页面可以最小化，请勿关闭或刷新。' : '普通弹窗不保证置顶；拖动系统标题栏可移动窗口。';
+  }
+  function refreshPeer() {
+    if (window.closed) return;
+    load(); render();
+  }
+  peers.add(refreshPeer);
+  window.addEventListener('pagehide', () => {
+    peers.delete(refreshPeer);
+    window.clearInterval(dayTimer);
+    dayTimer = null;
+    clearTimeout(toastTimer);
+    if (resolveConfirm) { resolveConfirm(false); resolveConfirm = null; }
+  }, { once: true });
+  // Going back after a page-cache restoration reattaches the local peer listener.
+  window.addEventListener('pageshow', () => {
+    peers.add(refreshPeer);
+    if (dayTimer === null) dayTimer = window.setInterval(checkDay, 60000);
+    checkDay();
+  });
+
+  $('due').value = localDate();
+  load();
+  render();
+}
+
+  mountTodo(rootWindow, { widget: new URL(rootWindow.location.href).searchParams.get('widget') === '1' });
+})();
+  </script>
+<script>
+(() => {
+  document.getElementById('exportDesktop')?.addEventListener('click', () => {
+    try {
+      const raw = localStorage.getItem('todo-local-v1');
+      if (raw === null) { alert('当前访问地址下没有待办数据。请使用原来的浏览器、用户配置和访问地址。'); return; }
+      const items = JSON.parse(raw);
+      if (!Array.isArray(items)) throw new Error('待办数据不是数组，原数据未修改。');
+      const blob = new Blob([JSON.stringify({schema:1, items, exportedAt:new Date().toISOString(), source:'todo-web-v1.3'}, null, 2)], {type:'application/json;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='todo-web-backup.json'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (error) { alert('导出失败：' + error.message); }
+  });
+})();
+</script></body>
+</html>

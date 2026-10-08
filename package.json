@@ -1,0 +1,19 @@
+{
+  "name": "todo-desktop",
+  "productName": "TodoDesktop",
+  "version": "1.4.0",
+  "description": "米灰色与灰蓝色的本地桌面待办小窗",
+  "private": true,
+  "main": "src/main.cjs",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "package:win": "node scripts/package-win.cjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "44.7.0"
+  }
+}

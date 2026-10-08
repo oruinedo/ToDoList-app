@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
+<title>待办小窗 · Todo</title><link rel="icon" href="data:,"><link rel="stylesheet" href="styles.css">
+<script src="renderer.js" defer></script></head><body class="widget-mode">
+<header class="native-bar" aria-label="桌面窗口标题栏">
+  <div class="native-brand" title="拖动这里移动小窗"><span class="native-mark" aria-hidden="true">◌</span><strong>待办小窗</strong><span class="native-label">TODO</span></div>
+  <div class="native-actions">
+    <button id="pinButton" class="native-button pin-button active" type="button" aria-label="取消置顶" aria-pressed="true" title="取消置顶">已置顶</button>
+    <button id="modeButton" class="native-button" type="button" aria-label="切换为完整界面" title="切换为完整界面">↗</button>
+    <button id="moreButton" class="native-button" type="button" aria-label="数据与设置" title="数据与设置">⋯</button>
+    <button id="minimizeButton" class="native-button" type="button" aria-label="最小化" title="最小化到任务栏">−</button>
+    <button id="hideButton" class="native-button close-native" type="button" aria-label="收起到托盘" title="收起到托盘，不退出">×</button>
+  </div>
+</header>
+
+  <div class="app">
+    <aside class="side">
+      <div class="brand">◌ &nbsp;todo.</div>
+      <nav id="desktopNav" aria-label="待办分类"></nav>
+      <p class="side-note">简单记录，轻松完成。</p>
+      <p class="version">桌面客户端 · V1.4</p>
+    </aside>
+    <main class="main">
+      <div class="eyebrow" id="dateLabel"></div>
+      <div class="top">
+        <div>
+          <h1 id="heading">全部待办</h1>
+          <div class="sub" id="subtitle">把事情一件一件做好。</div>
+        </div>
+        <div class="decoration" aria-hidden="true">✳</div>
+      </div>
+      <nav class="widget-nav" id="widgetNav" aria-label="小窗待办分类" hidden></nav>
+      <div class="stats">
+        <div class="stat"><b id="total">0</b><span>未完成</span></div>
+        <div class="stat"><b id="today">0</b><span>今日待办</span></div>
+        <div class="stat"><b id="urgent">0</b><span>紧急事项</span></div>
+      </div>
+      <div class="storage-warning" id="storageWarning" role="alert" hidden></div>
+      <form class="composer" id="form" autocomplete="off" inert>
+        <label class="field-label" for="taskInput">标题<span class="optional">必填</span></label>
+        <div class="quick-title"><input id="taskInput" name="title" type="text" placeholder="这件事叫什么？" required maxlength="250" aria-label="待办标题"><button class="quick-submit" type="submit" aria-label="添加待办" title="添加待办" hidden>＋</button></div>
+        <button class="composer-toggle" id="toggleComposer" type="button" aria-controls="composerDetails" aria-expanded="false" hidden>正文与日期 <span aria-hidden="true">⌄</span></button>
+        <div class="composer-details" id="composerDetails">
+        <div class="body-field">
+          <label class="field-label" for="bodyInput">正文<span class="optional">选填</span></label>
+          <textarea class="body-input" id="bodyInput" maxlength="100000" name="body" rows="3" placeholder="记录具体内容、处理步骤或补充说明…&#10;支持换行，也可以稍后再补充。"></textarea>
+        </div>
+        <div class="controls">
+          <label class="sr-only" for="priority">事项类型</label>
+          <select id="priority" name="priority"><option value="normal">普通事项</option><option value="urgent">紧急事项</option></select>
+          <label class="sr-only" for="due">计划日期</label>
+          <input id="due" name="due" type="date">
+          <button type="submit">＋ 添加任务</button>
+        </div>
+        </div>
+        <p class="form-hint">正文中按 Enter 换行 · Ctrl / ⌘ + Enter 快速保存</p>
+      </form>
+      <div class="section-title" id="listTitle">任务清单</div>
+      <div id="tasks"></div>
+      <footer class="widget-footer" id="widgetFooter"><div><span class="local-dot" aria-hidden="true"></span><span id="syncLabel">本机自动保存</span><button type="button" class="footer-button" id="footerMore">数据与设置</button></div><p>添加或保存后写入本地文件 · 无需浏览器和容器</p></footer>
+    </main>
+  </div>
+  <nav class="mobile-nav" id="mobileNav" aria-label="待办分类（移动端）"></nav>
+
+  <dialog class="edit-dialog" id="editDialog" aria-labelledby="editHeading" aria-describedby="editDescription">
+    <div class="dialog-head">
+      <div><h2 id="editHeading">编辑待办</h2><p id="editDescription">更新标题与正文，保留每个细节。</p></div>
+      <button class="close-btn" id="closeEdit" type="button" aria-label="关闭编辑">×</button>
+    </div>
+    <form id="editForm" autocomplete="off">
+      <label class="field-label" for="editTitle">标题<span class="optional">必填</span></label>
+      <input class="edit-input" id="editTitle" name="title" type="text" required maxlength="250" autofocus>
+      <div class="body-field">
+        <label class="field-label" for="editBody">正文<span class="optional">选填</span></label>
+        <textarea class="edit-body" id="editBody" maxlength="100000" name="body" placeholder="补充具体内容、步骤或备注…"></textarea>
+      </div>
+      <div class="edit-options">
+        <div><label class="field-label" for="editPriority">事项类型</label><select id="editPriority"><option value="normal">普通事项</option><option value="urgent">紧急事项</option></select></div>
+        <div><label class="field-label" for="editDue">计划日期</label><input id="editDue" type="date"></div>
+      </div>
+      <p class="dialog-error" id="editError" role="alert" hidden></p>
+      <div class="dialog-footer">
+        <button class="secondary-btn" id="cancelEdit" type="button">取消</button>
+        <button class="primary" type="submit">保存修改</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmHeading" aria-describedby="confirmMessage">
+    <h2 id="confirmHeading">请确认</h2><p id="confirmMessage"></p>
+    <div class="dialog-footer"><button class="secondary-btn" type="button" id="confirmNo">取消</button><button class="primary" type="button" id="confirmYes">确定</button></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+
+<dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsHeading">
+  <div class="dialog-head"><div><h2 id="settingsHeading">数据与设置</h2><p>你的待办，保存在这台电脑。</p></div><button class="close-btn" id="closeSettings" type="button" aria-label="关闭设置">×</button></div>
+  <div class="settings-group">
+    <button class="settings-action" id="importFileButton" type="button"><span>导入 JSON 备份</span><small>合并旧版任务，不覆盖当前清单</small><b>↙</b></button>
+    <button class="settings-action" id="pasteButton" type="button"><span>粘贴旧版数据</span><small>支持网页版导出的待办数组</small><b>＋</b></button>
+    <button class="settings-action" id="exportButton" type="button"><span>导出备份</span><small>将标题、正文及完成状态存为 JSON</small><b>↗</b></button>
+    <button class="settings-action" id="folderButton" type="button"><span>打开数据文件夹</span><small>tasks.json · 自动备份 tasks.json.bak</small><b>↗</b></button>
+  </div>
+  <p class="settings-note">浏览器版和客户端各自保存数据，不会自动同步。<br>关闭小窗后可从系统托盘重新唤出；彻底退出请使用下方按钮。</p>
+  <div class="settings-bottom"><span id="versionLabel">Todo Desktop · V1.4</span><button id="quitButton" class="text-btn" type="button">退出客户端</button></div>
+</dialog>
+<dialog class="edit-dialog paste-dialog" id="pasteDialog" aria-labelledby="pasteHeading">
+  <div class="dialog-head"><div><h2 id="pasteHeading">导入旧版待办</h2><p>粘贴 JSON 数组，保留所有标题与正文。</p></div><button class="close-btn" id="closePaste" type="button" aria-label="关闭粘贴导入">×</button></div>
+  <textarea class="edit-body paste-input" id="pasteInput" aria-label="待办 JSON 数据" placeholder='[{"title":"待办标题","body":"正文内容"}]'></textarea>
+  <p class="settings-note">只会合并导入，不会清空当前清单。重复数据会跳过；格式不正确时不会写入。</p>
+  <p id="pasteError" class="dialog-error" role="alert" hidden></p>
+  <div class="dialog-footer"><button id="cancelPaste" class="secondary-btn" type="button">取消</button><button id="confirmPaste" class="primary" type="button">检查并导入</button></div>
+</dialog>
+</body></html>
